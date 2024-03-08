@@ -1,0 +1,78 @@
+services:
+  ma-ebank-discovery-service:
+    build: ./discovery-service
+    container_name: ma-ebank-discovery-service
+    ports:
+    - '8761:8761'
+    expose:
+      - '8761'
+    healthcheck:
+      test: ["CMD","curl","-f","http://localhost:8761/actuator/health"]
+      interval: 10s
+      retries: 4
+  ma-ebank-config-service:
+    build: ./config-service
+    container_name: ma-ebank-config-service
+    ports:
+      - '9999:9999'
+    expose:
+      - '9999'
+    environment:
+      - DISCOVERY_SERVICE_URL= http://ma-ebank-discovery-service:8761/eureka
+    healthcheck:
+      test: ["CMD","curl","-f","http://localhost:9999/actuator/health"]
+      interval: 10s
+      retries: 4
+    depends_on:
+      ma-ebank-discovery-service:
+        condition: service_healthy
+  ma-customer-service:
+    build: ./customer-service
+    container_name: ma-customer-service
+    ports:
+      - '8081:8081'
+    expose:
+      - '8081'
+    depends_on:
+      ma-ebank-config-service:
+       condition: service_healthy
+    environment:
+      - DISCOVERY_SERVICE_URL= http://ma-ebank-discovery-service:8761/eureka
+      - CONFIG_SERVICE_URL= http://ma-ebank-discovery-service:8761/eureka
+    healthcheck:
+      test: ["CMD","curl","http://localhost:8081/actuator/health"]
+      interval: 10s
+      retries: 4
+  ma-account-service:
+    build: ./account-service
+    container_name: ma-account-service
+    ports:
+      - '8082:8082'
+    expose:
+      - '8082'
+    depends_on:
+      ma-customer-service:
+        condition: service_healthy
+    environment:
+      - DISCOVERY_SERVICE_URL= http://ma-ebank-discovery-service:8761/eureka
+      - CONFIG_SERVICE_URL= http://ma-ebank-discovery-service:8761/eureka
+    healthcheck:
+      test: [ "CMD","curl","http://localhost:8082/actuator/health" ]
+      interval: 10s
+      retries: 4
+  ma-gateway-service:
+    build: ./gateway-service
+    container_name: ma-gateway-service
+    ports:
+      - '8080:8080'
+    expose:
+      - '8080'
+    depends_on:
+      ma-ebank-discovery-service:
+        condition: service_healthy
+    environment:
+      - DISCOVERY_SERVICE_URL= http://ma-ebank-discovery-service:8761/eureka
+    healthcheck:
+      test: [ "CMD","curl","http://localhost:8080/actuator/health" ]
+      interval: 10s
+      retries: 4
